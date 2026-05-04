@@ -1,0 +1,25 @@
+# OS
+.DS_Store
+
+# Temp
+*.bak
+
+# Node
+node_modules/
+
+# Secrets
+.env
+secrets/
+gemini.json
+*-service-account*.json
+*credentials*.json
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Per-project workspaces (configs, clones, outputs are all customer-specific)
+projects/*
+!projects/.gitkeep
+
+# cwv-agent runtime cache
+src/analyzers/cwv/vendor/.cache/

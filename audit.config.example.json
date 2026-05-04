@@ -1,0 +1,15 @@
+{
+  "customer": "Acme Corporation",
+  "site": "https://www.example.com",
+  "source": {
+    "code": {
+      "repo": "https://github.com/customer/eds-site.git",
+      "ref": "main"
+    }
+  },
+  "content": { "source": "da" },
+  "analyzers": ["codeQuality", "contentModel", "seo", "security", "accessibility"],
+  "output": ["json", "html", "md", "pdf"],
+  "cwv": { "device": "mobile" },
+  "accessibility": { "pages": ["/"] }
+}
