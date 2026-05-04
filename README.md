@@ -134,6 +134,21 @@ If only one project exists, `--project` / `--all` is optional. With multiple pro
 
 After any source produces `.docx` files in `projects/<slug>/content/`, they are automatically converted to `.md` siblings via `@adobe/helix-docx2md` so the `contentModel` analyzer reads markdown.
 
+### SharePoint-backed content (Adobe-managed tenants)
+
+If the customer authors in SharePoint, the recommended path is `local`, not direct API access. SharePoint sync via Microsoft Graph requires `Files.Read.All` + `Sites.Read.All` (or `Sites.Selected`), and **Adobe's tenant gates both of these behind admin consent for delegated *and* application permissions** — there is no self-consent path. `rclone` against SharePoint via OAuth has the same limitation (the underlying app registration would need the same permissions).
+
+Workaround: enable the OneDrive desktop client to sync the SharePoint library to your Mac, then point the project at the synced folder:
+
+```jsonc
+"content": {
+  "source": "local",
+  "path": "/Users/<you>/Library/CloudStorage/OneDrive-Adobe/<Org>/<repo>"
+}
+```
+
+The `local` strategy `rsync`s from there into `projects/<slug>/content/` and runs the docx→md conversion. No Graph permissions required, and the content stays current as long as OneDrive is syncing.
+
 ## Architecture
 
 ```
