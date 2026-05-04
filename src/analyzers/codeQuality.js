@@ -33,7 +33,17 @@ Reply with ONLY a JSON array of Finding objects. No prose, no code fences. Each 
 
 Aim for 10–25 findings total across severities. Quality over quantity.`;
 
-const USER = `Audit the codebase under code/. Be selective: read at most ~15 files total. Start with one glob to map the project, then sample 4–6 representative blocks (don't read every block), the core scripts (scripts.js, aem.js, delayed.js if present), one or two CSS files, and any test/lint configs. Then emit the JSON findings.`;
+const USER = `Audit the codebase under code/. Be selective: read at most ~15 files total. Start with one glob to map the project, then sample 4–6 representative blocks (don't read every block), the core scripts (scripts.js, aem.js, delayed.js if present), one or two CSS files, and any test/lint configs.
+
+For each block you sample, also flag complexity smells:
+- decorate() function exceeds ~150 lines of code
+- deeply nested DOM construction (>4 levels)
+- more than 3 visual variants handled in one block
+- mixed concerns (data fetching + rendering + state management in one file)
+- block JS file >300 lines without clear separation
+- duplicated logic that should be hoisted to a shared utility
+
+Then emit the JSON findings.`;
 
 export async function run({ projectDir }) {
   const skillsText = await loadSkills(meta.skills, { projectRoot: projectDir });

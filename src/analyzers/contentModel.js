@@ -50,7 +50,15 @@ const USER = `Audit the content under content/. Be selective: read at most ~12 f
 
 1. First, check exclusion configs: read code/paths.json (if present), code/helix-query.yaml (if present), and code/robots.txt (if present). Note which folders/paths are excluded from publishing or indexing.
 2. Then glob "content/**/*.md" to map the content layout, and sample 5–8 representative pages from different top-level sections.
-3. Emit the JSON findings, applying the exclusion rules from step 1 before flagging any folder as a publishing risk.`;
+3. Emit the JSON findings, applying the exclusion rules from step 1 before flagging any folder as a publishing risk.
+
+For each block usage you sample, also flag content-model complexity smells:
+- tables with more than 4 columns (too many cells per row)
+- tables with configuration cells when content cells would suffice
+- inconsistent block authoring (same block used with different shapes across pages)
+- semantic formatting overloaded with meaning beyond what the canonical model defines
+- excessive nested fragments or auto-blocks that authors cannot reason about
+- tables that should be default content (paragraphs/lists) but are forced into a block`;
 
 export async function run({ projectDir }) {
   const skillsText = await loadSkills(meta.skills, { projectRoot: projectDir });
