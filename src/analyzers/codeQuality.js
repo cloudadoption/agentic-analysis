@@ -45,7 +45,7 @@ For each block you sample, also flag complexity smells:
 
 Then emit the JSON findings.`;
 
-export async function run({ projectDir }) {
+export async function run({ projectDir, onEvent = () => {} }) {
   const skillsText = await loadSkills(meta.skills, { projectRoot: projectDir });
   const system = `${SYSTEM_BASE}\n\n# Loaded skills\n\n${skillsText}`;
   const { text } = await runAgent({
@@ -53,6 +53,7 @@ export async function run({ projectDir }) {
     userPrompt: USER,
     toolNames: meta.tools,
     projectRoot: projectDir,
+    onEvent,
   });
   return FindingsArraySchema.parse(extractJson(text));
 }

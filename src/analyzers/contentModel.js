@@ -60,7 +60,7 @@ For each block usage you sample, also flag content-model complexity smells:
 - excessive nested fragments or auto-blocks that authors cannot reason about
 - tables that should be default content (paragraphs/lists) but are forced into a block`;
 
-export async function run({ projectDir }) {
+export async function run({ projectDir, onEvent = () => {} }) {
   const skillsText = await loadSkills(meta.skills, { projectRoot: projectDir });
   const system = `${SYSTEM_BASE}\n\n# Loaded skills\n\n${skillsText}`;
   const { text } = await runAgent({
@@ -68,6 +68,7 @@ export async function run({ projectDir }) {
     userPrompt: USER,
     toolNames: meta.tools,
     projectRoot: projectDir,
+    onEvent,
   });
   return FindingsArraySchema.parse(extractJson(text));
 }

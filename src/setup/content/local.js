@@ -3,6 +3,7 @@ import { mkdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { convertAll } from './docx2md.js';
+import { loadManifest, saveManifest, validateManifest, writeExcludes, excludesPath } from './manifest.js';
 
 function run(cmd, args, opts = {}) {
   return new Promise((resolve, reject) => {
@@ -25,7 +26,23 @@ export async function clone({ projectDir, contentConfig }) {
   const dest = path.join(projectDir, 'content');
   await mkdir(dest, { recursive: true });
 
-  const args = ['-a', '--delete', '--stats', '--human-readable', '--info=progress2', '--no-inc-recursive'];
+  console.log('[content:local] validating docx2md manifest against source + dest…');
+  const loaded = await loadManifest(projectDir);
+  const { manifest: cleaned, removed } = await validateManifest({ manifest: loaded, sourceDir: src, contentDir: dest });
+  await saveManifest(projectDir, cleaned);
+  const excludesFile = await writeExcludes(projectDir, cleaned);
+  const protected_ = Object.keys(cleaned.entries).length;
+  console.log(`[content:local] manifest: ${protected_} .docx protected from re-sync${removed ? `, ${removed} stale entries pruned` : ''}`);
+
+  const args = [
+    '-a', '--delete', '--stats', '--human-readable', '--info=progress2', '--no-inc-recursive',
+    '--exclude=~$*',
+    '--exclude=.~lock.*',
+    '--exclude=.DS_Store',
+    '--exclude=Thumbs.db',
+    '--exclude=*.md',
+    `--exclude-from=${excludesFile}`,
+  ];
   for (const inc of contentConfig.include || []) args.push('--include', inc);
   for (const exc of contentConfig.exclude || []) args.push('--exclude', exc);
   args.push(src.endsWith('/') ? src : `${src}/`, `${dest}/`);
@@ -39,6 +56,6 @@ export async function clone({ projectDir, contentConfig }) {
     throw err;
   }
 
-  console.log(`[content:local] converting .docx -> .md`);
-  await convertAll({ contentDir: dest });
+  console.log('[content:local] converting any new .docx -> .md (and removing the .docx after)…');
+  await convertAll({ contentDir: dest, projectDir });
 }

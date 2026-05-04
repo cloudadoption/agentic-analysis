@@ -74,14 +74,21 @@ node src/cli.js list-analyzers          # list available analyzers
 node src/cli.js setup [opts]            # clone code + content
 node src/cli.js run [opts]              # setup + analyzers + synthesize + render
 node src/cli.js render [opts]           # re-render from existing findings.json (no re-run)
+node src/cli.js clean [opts]            # delete generated artifacts; keep audit.config.json
 ```
 
-Common options for `setup` / `run` / `render`:
+Common options for `setup` / `run` / `render` / `clean`:
 - `-p, --project <slug>` — repeatable; selects which project(s) to operate on.
 - `-a, --all` — operate on every project.
 - `--skip-setup` *(run only)* — skip the clone step.
 - `--refresh` *(setup, run)* — force a fresh git fetch / content sync.
+- `--rerun <name>` *(run only)* — invalidate the cached findings for one analyzer (repeatable; `--rerun all` invalidates everything for the project).
 - `--no-open` *(run, render)* — do not open the HTML report when done.
+- `-y, --yes` *(clean only)* — skip the y/N confirmation prompt.
+
+### Caching
+
+After each successful analyzer run, its findings are cached to `projects/<slug>/.cache/<analyzer>.json`. The next `audit run` reuses the cache (logged as `↻ <analyzer> (cached …)`) so you only re-pay for analyzers you actually change. Failed analyzers don't cache, so they retry automatically. Use `--rerun <name>` to force a fresh run for one, or `clean` to wipe everything and start over.
 
 If only one project exists, `--project` / `--all` is optional. With multiple projects, you must pick. Multi-project runs are sequential with `[<slug>]`-prefixed logs; one failing does not abort the rest (process exits non-zero at the end if any failed).
 
@@ -132,7 +139,13 @@ If only one project exists, `--project` / `--all` is optional. With multiple pro
 "content": { "source": "none" }
 ```
 
-After any source produces `.docx` files in `projects/<slug>/content/`, they are automatically converted to `.md` siblings via `@adobe/helix-docx2md` so the `contentModel` analyzer reads markdown.
+After any source produces `.docx` files in `projects/<slug>/content/`, they are automatically converted to `.md` siblings via `@adobe/helix-docx2md` so the `contentModel` analyzer reads markdown. After conversion, the `.docx` original is **deleted from the project**, and a manifest at `projects/<slug>/.cache/docx2md-manifest.json` records what's been converted plus the source mtime. On subsequent syncs:
+
+- A `--exclude-from` list keeps rsync from re-fetching already-converted `.docx` files.
+- If you edit a doc upstream (mtime advances), the manifest entry is invalidated and the file is re-fetched + re-converted on the next setup.
+- If you delete a `.md` from `content/`, the manifest also invalidates so the next setup brings the source back and reconverts it.
+
+Net effect: a 19 GB OneDrive content tree settles to ~500 MB on disk after first conversion, and subsequent syncs only transfer changed files.
 
 ### SharePoint-backed content (Adobe-managed tenants)
 

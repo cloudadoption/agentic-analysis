@@ -17,9 +17,10 @@ gemini.json
 # Claude Code local settings
 .claude/settings.local.json
 
-# Per-project workspaces (configs, clones, outputs are all customer-specific)
+# Per-project workspaces (configs, clones, outputs, caches all customer-specific)
 projects/*
 !projects/.gitkeep
+projects/*/.cache/
 
 # cwv-agent runtime cache
 src/analyzers/cwv/vendor/.cache/

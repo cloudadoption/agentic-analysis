@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import 'dotenv/config';
 import { Command } from 'commander';
-import { copyFile, writeFile, readFile, mkdir, stat } from 'node:fs/promises';
+import { copyFile, writeFile, readFile, mkdir, stat, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import {
@@ -11,6 +11,7 @@ import { cloneCode } from './setup/cloneCode.js';
 import { cloneContent } from './setup/cloneContent.js';
 import { runAnalyzers } from './orchestrator.js';
 import { synthesize } from './synthesize.js';
+import { invalidate, listCached } from './cache.js';
 import { render } from './renderers/index.js';
 import { listAnalyzers } from './analyzers/index.js';
 
@@ -35,6 +36,47 @@ program
     const src = path.join(repoRoot, 'audit.config.example.json');
     await copyFile(src, dst);
     console.log(`Wrote ${dst}. Edit it, then run \`audit setup --project ${slug}\` and \`audit run --project ${slug}\`.`);
+  });
+
+program
+  .command('clean')
+  .description('Remove generated artifacts (code/, content/, .cache/, findings.json, report.*, cwv/) and reset the project for a full clean run. audit.config.json is preserved.')
+  .option('-p, --project <slug>', 'project slug (repeatable)', collect, [])
+  .option('-a, --all', 'clean every project', false)
+  .option('-y, --yes', 'skip the confirmation prompt', false)
+  .action(async (opts) => {
+    const targets = await resolveTargets(repoRoot, { slugs: opts.project, all: opts.all });
+    const ARTIFACTS = ['code', 'content', '.cache', 'cwv', 'findings.json', 'report.html', 'report.md', 'report.pdf'];
+
+    const plan = [];
+    for (const t of targets) {
+      const present = [];
+      for (const a of ARTIFACTS) {
+        const p = path.join(t.dir, a);
+        try { await stat(p); present.push(a); } catch {}
+      }
+      plan.push({ slug: t.slug, dir: t.dir, present });
+    }
+
+    console.log('The following artifacts will be removed:');
+    for (const p of plan) {
+      console.log(`  ${prefix(p.slug)} ${p.dir}`);
+      if (p.present.length) p.present.forEach((a) => console.log(`      - ${a}`));
+      else console.log('      (nothing to clean)');
+    }
+    console.log('audit.config.json is preserved.');
+
+    if (!opts.yes) {
+      const ok = await confirm('Proceed? [y/N] ');
+      if (!ok) { console.log('Aborted.'); process.exit(0); }
+    }
+
+    for (const p of plan) {
+      for (const a of p.present) {
+        await rm(path.join(p.dir, a), { recursive: true, force: true });
+      }
+      console.log(prefix(p.slug), `cleaned ${p.present.length} item(s)`);
+    }
   });
 
 program
@@ -69,6 +111,7 @@ program
   .option('-a, --all', 'run for all projects', false)
   .option('--skip-setup', 'skip clone step', false)
   .option('--refresh', 'force refresh of clones', false)
+  .option('-r, --rerun <name>', 'invalidate cache for an analyzer (repeatable; "all" clears every analyzer)', collect, [])
   .option('--no-open', 'do not open the HTML report when done')
   .action(async (opts) => {
     const targets = await resolveTargets(repoRoot, { slugs: opts.project, all: opts.all });
@@ -93,6 +136,23 @@ program
 
 function prefix(slug) { return `[${slug}]`; }
 
+function shortInput(input) {
+  const s = JSON.stringify(input || {});
+  return s.length > 80 ? s.slice(0, 77) + '…' : s;
+}
+
+function confirm(question) {
+  return new Promise((resolve) => {
+    process.stdout.write(question);
+    process.stdin.setEncoding('utf8');
+    process.stdin.once('data', (input) => {
+      const answer = input.trim().toLowerCase();
+      resolve(answer === 'y' || answer === 'yes');
+      process.stdin.pause();
+    });
+  });
+}
+
 function openInBrowser(filePath) {
   const platform = process.platform;
   const cmd = platform === 'darwin' ? 'open'
@@ -112,11 +172,29 @@ async function setupOne({ slug, dir, config }, refresh) {
 async function runOne({ slug, dir, config }, opts) {
   if (!opts.skipSetup) await setupOne({ slug, dir, config }, opts.refresh);
 
+  if (opts.rerun?.length) {
+    const targets = opts.rerun.includes('all') ? 'all' : opts.rerun;
+    await invalidate(dir, targets);
+    console.log(prefix(slug), `cache invalidated: ${targets === 'all' ? 'all' : targets.join(', ')}`);
+  }
+
+  const cached = await listCached(dir);
+  if (cached.length) console.log(prefix(slug), `cache hits available: ${cached.join(', ')} (use --rerun to redo)`);
+
   console.log(prefix(slug), `analyzers: ${config.analyzers.join(', ')}`);
   const findings = await runAnalyzers({
     config,
     projectDir: dir,
-    onEvent: (e) => console.log(prefix(slug), 'event', e),
+    onEvent: (e) => {
+      if (e.type === 'analyzer:start') console.log(prefix(slug), `▶ ${e.name}`);
+      else if (e.type === 'analyzer:done') console.log(prefix(slug), `✓ ${e.name} (${e.count} findings)`);
+      else if (e.type === 'analyzer:cached') console.log(prefix(slug), `↻ ${e.name} (${e.count} findings, cached ${e.cachedAt})`);
+      else if (e.type === 'analyzer:error') console.log(prefix(slug), `✗ ${e.name}: ${e.error}`);
+      else if (e.type === 'turn') console.log(prefix(slug), `  ${e.analyzer} turn=${e.turn} stop=${e.stopReason}${e.usage ? ` tokens=${e.usage.inputTokens || '?'}/${e.usage.outputTokens || '?'}` : ''}`);
+      else if (e.type === 'tool') console.log(prefix(slug), `  ${e.analyzer} → ${e.name}(${shortInput(e.input)})`);
+      else if (e.type === 'budget-exhausted') console.log(prefix(slug), `  ${e.analyzer} budget exhausted at turn ${e.turn}, finalizing`);
+      else if (e.type === 'finalize') console.log(prefix(slug), `  ${e.analyzer} finalize${e.usage ? ` tokens=${e.usage.inputTokens || '?'}/${e.usage.outputTokens || '?'}` : ''}`);
+    },
   });
 
   console.log(prefix(slug), `synthesizing summary…`);
