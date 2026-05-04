@@ -25,7 +25,7 @@ export async function clone({ projectDir, contentConfig }) {
   const dest = path.join(projectDir, 'content');
   await mkdir(dest, { recursive: true });
 
-  const args = ['-a', '--delete', '--stats', '--human-readable'];
+  const args = ['-a', '--delete', '--stats', '--human-readable', '--info=progress2', '--no-inc-recursive'];
   for (const inc of contentConfig.include || []) args.push('--include', inc);
   for (const exc of contentConfig.exclude || []) args.push('--exclude', exc);
   args.push(src.endsWith('/') ? src : `${src}/`, `${dest}/`);

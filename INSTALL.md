@@ -84,11 +84,27 @@ Reference that remote in the project config under `content.remote`.
 
 ### `local` — point at a folder on disk
 
-No install needed. Uses macOS's built-in `rsync`. Typical use case: a SharePoint library that's already syncing to your Mac via the OneDrive desktop app, e.g.:
+Uses `rsync` to copy from a local path. Typical use case: a SharePoint library already syncing to your Mac via the OneDrive desktop app, e.g.:
 
 ```
 /Users/<you>/Library/CloudStorage/OneDrive-Adobe/HelixProjects - <Org>/<repo>
 ```
+
+**Requires rsync 3.x**, not the 2.6.9 that ships with macOS — we use `--info=progress2` which is rsync-3-only. Install the modern version and make sure it's first on `PATH`:
+
+```bash
+brew install rsync
+which rsync           # should print /opt/homebrew/bin/rsync, not /usr/bin/rsync
+rsync --version       # should be 3.x
+```
+
+If `which rsync` still returns `/usr/bin/rsync`, prepend Homebrew to your `PATH` in `~/.zshrc`:
+
+```bash
+export PATH="/opt/homebrew/bin:$PATH"
+```
+
+> **OneDrive Files-on-Demand:** if the OneDrive folder uses placeholder files (downloaded on access), the first rsync can be very slow as each file materializes. Force a full local copy ahead of time: in Finder, select the folder → right-click → "Always keep on this device".
 
 ### `manual` and `none`
 

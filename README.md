@@ -204,6 +204,7 @@ Tool schemas come from each tool module's `spec`. Tool results are appended to t
 - **`Bedrock 400 ... prompt is too long`** — the agent loop should prevent this; if you see it, an analyzer's loaded skill files may be too large. Open an issue.
 - **`aem content clone` fails / 403** — that command is **DA-only**. For SharePoint / Drive / etc., use `rclone` or `local` content sources instead.
 - **`rclone: command not found`** — `brew install rclone`, then `rclone config` to add a remote.
+- **`rsync: unrecognized option '--info=progress2'`** — macOS ships rsync 2.6.9; the `local` strategy needs 3.x. `brew install rsync` and ensure `/opt/homebrew/bin` is first on `PATH`.
 - **CWV: "API key not valid"** — could mean the URL has no CrUX data (404 misreported as 401), the key is restricted, or the CrUX API isn't enabled on the key's GCP project. Test with: `curl -s -X POST "https://chromeuxreport.googleapis.com/v1/records:queryRecord?key=$KEY" -H 'Content-Type: application/json' -d '{"url":"https://example.com","formFactor":"PHONE"}'`.
 - **CWV: "gemini.json does not exist"** — `GOOGLE_APPLICATION_CREDENTIALS` is being resolved relative to the cwv-agent vendor dir. Use an **absolute path** in `.env`.
 - **Puppeteer fails to launch** — `npx puppeteer browsers install chrome` to refresh the bundled Chromium.
