@@ -38,7 +38,7 @@ async function finalize({ system, messages, tools, onEvent }) {
   });
   const res = await converse({
     system, messages, tools,
-    inferenceConfig: { maxTokens: 8192, temperature: 0 },
+    inferenceConfig: { maxTokens: 16384, temperature: 0 },
   });
   const msg = res.output?.message;
   messages.push(msg);
@@ -65,7 +65,7 @@ export async function runAgent({
 
     const res = await converse({
       system, messages, tools,
-      inferenceConfig: { maxTokens: 8192, temperature: 0 },
+      inferenceConfig: { maxTokens: 16384, temperature: 0 },
     });
     const msg = res.output?.message;
     if (!msg) throw new Error(`Bedrock returned no message: ${JSON.stringify(res)}`);

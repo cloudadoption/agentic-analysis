@@ -1,5 +1,6 @@
 import { writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { DISCLAIMER } from '../constants.js';
 
 const SEV_ICON = { critical: '🔴', warning: '🟡', info: '🔵', success: '🟢' };
 const SEV_RANK = { critical: 0, warning: 1, info: 2, success: 3 };
@@ -67,6 +68,8 @@ export async function render({ findings, synthesis, config, projectDir, slug }) 
   const out = [];
   out.push(`# ${config.customer} — Audit Report`);
   out.push('');
+  out.push(`> ${DISCLAIMER}`);
+  out.push('');
   out.push(`**Project:** \`${slug}\`  ·  **Site:** [${config.site}](${config.site})  ·  **Generated:** ${new Date().toISOString()}`);
   out.push('');
   out.push(`**Analyzers:** ${config.analyzers.join(', ')}`);
@@ -119,6 +122,10 @@ export async function render({ findings, synthesis, config, projectDir, slug }) 
     out.push('---');
     out.push('');
   }
+
+  out.push('');
+  out.push(`*${DISCLAIMER}*`);
+  out.push('');
 
   await writeFile(target, out.join('\n'));
   return target;

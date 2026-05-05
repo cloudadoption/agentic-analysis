@@ -1,5 +1,6 @@
 import { writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { DISCLAIMER } from '../constants.js';
 
 export async function render({ findings, synthesis, config, projectDir, slug }) {
   await mkdir(projectDir, { recursive: true });
@@ -86,9 +87,16 @@ function buildHtml({ findings, synthesis, config, slug }) {
   * { box-sizing: border-box; }
   html, body { margin: 0; }
   body { font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text); }
+
+  .disclaimer { background: rgba(255,184,77,0.08); border-bottom: 1px solid rgba(255,184,77,0.25); color: var(--muted); font-size: 11px; padding: 8px 32px; letter-spacing: 0.02em; }
+  .disclaimer strong { color: var(--warning); letter-spacing: 0.06em; }
+  footer.disclaimer-foot { padding: 20px 32px; border-top: 1px solid var(--border); color: var(--muted); font-size: 11px; }
   @media print {
     :root { --bg: #fff; --panel: #f8f9fa; --panel-2: #f1f3f5; --text: #1a1d20; --muted: #5a6470; --border: #d0d4da; --critical: #c92a2a; --warning: #b25e00; --info: #1864ab; --success: #2b8a3e; --link: #1864ab; }
     body, header.top, section.exec, .stats, .controls, .category > .head { background: var(--bg); color: var(--text); }
+    .disclaimer { background: #fff7e6; border-bottom-color: #f5b840; color: #5a4500; }
+    .disclaimer strong { color: #b25e00; }
+    footer.disclaimer-foot { color: #5a6470; }
     .controls { display: none; }
     .row-detail { display: table-row !important; }
     .row-detail.hidden { display: table-row !important; }
@@ -158,6 +166,7 @@ function buildHtml({ findings, synthesis, config, slug }) {
 </style>
 </head>
 <body>
+<div class="disclaimer"><strong>CONFIDENTIAL</strong> — ${escape(DISCLAIMER.replace(/^CONFIDENTIAL — /, ''))}</div>
 <header class="top">
   <h1>${escape(config.customer)} — Audit</h1>
   <div class="meta">
@@ -192,6 +201,8 @@ ${synthesis ? `<section class="exec">
 
 <main id="cats"></main>
 <div id="empty" class="empty hidden">No findings match the current filters.</div>
+
+<footer class="disclaimer-foot">${escape(DISCLAIMER)}</footer>
 
 <script>
   const DATA = ${data};

@@ -2,6 +2,7 @@ import { readFile, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { DISCLAIMER } from './constants.js';
 
 const FILES = [
   { name: 'report.html', type: 'text/html; charset=utf-8' },
@@ -66,6 +67,7 @@ export async function publish({ projectDir, slug, config }) {
     site: config.site,
     publishedAt: now.toISOString(),
     expiresAt,
+    disclaimer: DISCLAIMER,
     files: uploaded,
   };
   await s3.send(new PutObjectCommand({

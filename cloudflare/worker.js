@@ -74,6 +74,8 @@ function escape(s = '') {
   return String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 }
 
+const FALLBACK_DISCLAIMER = "CONFIDENTIAL — Prepared at the customer's request by the Adobe AEM Engineering team using automated audit agents. Findings reflect a snapshot of the codebase and live site at the time of generation. Intended for the customer and engagement team only; not for redistribution.";
+
 function landingPage(hash, meta) {
   const files = (meta.files || []).filter((f) => f !== 'meta.json');
   const map = {
@@ -83,6 +85,8 @@ function landingPage(hash, meta) {
     'findings.json': { label: 'Raw findings (JSON)',        emoji: '🔢' },
   };
   const expiry = meta.expiresAt ? new Date(meta.expiresAt).toUTCString() : '';
+  const disclaimer = meta.disclaimer || FALLBACK_DISCLAIMER;
+  const disclaimerBody = disclaimer.replace(/^CONFIDENTIAL\s*[—-]\s*/, '');
   const cards = files.map((f) => {
     const m = map[f] || { label: f, emoji: '📁' };
     return `<a class="card" href="./${escape(f)}"><div class="emoji">${m.emoji}</div><div class="title">${escape(m.label)}</div><div class="file">${escape(f)}</div></a>`;
@@ -93,10 +97,12 @@ function landingPage(hash, meta) {
 <meta name="robots" content="noindex, nofollow">
 <title>Audit — ${escape(meta.customer || 'report')}</title>
 <style>
-  :root { --bg:#0b0d10; --panel:#14181d; --panel-2:#1a2027; --text:#e8eaed; --muted:#9aa3ad; --border:#262d36; --link:#6cb1ff; }
+  :root { --bg:#0b0d10; --panel:#14181d; --panel-2:#1a2027; --text:#e8eaed; --muted:#9aa3ad; --border:#262d36; --link:#6cb1ff; --warning:#ffb84d; }
   * { box-sizing: border-box; }
-  body { margin: 0; padding: 32px 24px; background: var(--bg); color: var(--text); font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
-  .wrap { max-width: 720px; margin: 0 auto; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+  .disclaimer { background: rgba(255,184,77,0.10); border-bottom: 1px solid rgba(255,184,77,0.35); color: var(--text); font-size: 13px; line-height: 1.5; padding: 14px 24px; letter-spacing: 0.01em; }
+  .disclaimer strong { color: var(--warning); letter-spacing: 0.08em; font-size: 12px; display: inline-block; margin-right: 4px; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 32px 24px; }
   header h1 { margin: 0 0 4px; font-size: 22px; }
   header .meta { color: var(--muted); font-size: 13px; margin-bottom: 4px; }
   header .meta a { color: var(--link); }
@@ -106,9 +112,10 @@ function landingPage(hash, meta) {
   .card .emoji { font-size: 28px; margin-bottom: 8px; }
   .card .title { font-weight: 600; margin-bottom: 2px; }
   .card .file { color: var(--muted); font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-  footer { margin-top: 28px; color: var(--muted); font-size: 12px; }
+  footer { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 11px; }
 </style>
 </head><body>
+  <div class="disclaimer"><strong>CONFIDENTIAL</strong> — ${escape(disclaimerBody)}</div>
   <div class="wrap">
     <header>
       <h1>${escape(meta.customer || 'Audit report')}</h1>
@@ -116,7 +123,7 @@ function landingPage(hash, meta) {
       ${expiry ? `<div class="meta">This URL expires ${escape(expiry)}.</div>` : ''}
     </header>
     <div class="grid">${cards || '<div class="card">No files</div>'}</div>
-    <footer>Unlisted report — please don't share this URL beyond your team.</footer>
+    <footer>${escape(disclaimer)}</footer>
   </div>
 </body></html>`;
 }

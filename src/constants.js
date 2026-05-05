@@ -1,0 +1,1 @@
+export const DISCLAIMER = "CONFIDENTIAL — Prepared at the customer's request by the Adobe AEM Engineering team using automated audit agents. Findings reflect a snapshot of the codebase and live site at the time of generation. Intended for the customer and engagement team only; not for redistribution.";

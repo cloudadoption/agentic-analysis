@@ -1,6 +1,7 @@
 import { runAgent } from '../bedrock/agentLoop.js';
 import { loadSkills } from '../skills.js';
 import { FindingsArraySchema } from '../schema/finding.js';
+import { extractJsonArray } from '../utils/extract-json.js';
 
 export const meta = {
   name: 'contentModel',
@@ -70,13 +71,5 @@ export async function run({ projectDir, onEvent = () => {} }) {
     projectRoot: projectDir,
     onEvent,
   });
-  return FindingsArraySchema.parse(extractJson(text));
-}
-
-function extractJson(text) {
-  const trimmed = text.trim();
-  const start = trimmed.indexOf('[');
-  const end = trimmed.lastIndexOf(']');
-  if (start === -1 || end === -1) throw new Error(`No JSON array in model output: ${trimmed.slice(0, 300)}`);
-  return JSON.parse(trimmed.slice(start, end + 1));
+  return FindingsArraySchema.parse(extractJsonArray(text));
 }
