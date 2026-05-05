@@ -152,6 +152,37 @@ How to get them:
 
 > Some Adobe-managed GCP projects may not be able to issue all of these. If `cwv` is blocked, drop it from `analyzers` in your project config — the rest of the audit still runs.
 
+## Optional: Cloudflare R2 + Worker for online delivery
+
+Only required if you'll use `audit publish` to share reports via `https://audit.bbird.live/<hash>/`. Skip this section for local-only usage.
+
+You need:
+
+- A Cloudflare account with **R2 enabled** (free tier is fine).
+- A bucket named `audit-reports` (or set `CLOUDFLARE_R2_BUCKET` in `.env`).
+- An R2 API token scoped to that bucket with **Object Read & Write**. Save the **Access Key ID** and **Secret Access Key** — Cloudflare only shows the secret once.
+- Your **account ID** (visible in any Cloudflare dashboard URL: `dash.cloudflare.com/<accountId>/...`).
+- A zone you control (e.g. `bbird.live`) where the Worker can serve `audit.<zone>`. The DNS record (`audit` AAAA `100::`, proxied) typically needs to be added once by hand the first time.
+- `wrangler` CLI: comes with `npx`, so just run `npx wrangler login` once.
+
+Add the credentials to `.env`:
+
+```bash
+CLOUDFLARE_ACCOUNT_ID=...
+CLOUDFLARE_R2_ACCESS_KEY_ID=...
+CLOUDFLARE_R2_SECRET_ACCESS_KEY=...
+CLOUDFLARE_R2_BUCKET=audit-reports
+AUDIT_REPORT_BASE_URL=https://audit.bbird.live
+```
+
+Deploy the Worker (one-time, plus after any edits to `cloudflare/worker.js`):
+
+```bash
+cd cloudflare && npx wrangler deploy
+```
+
+Full step-by-step setup (R2 bucket, API token, DNS, deploy) lives in [cloudflare/README.md](cloudflare/README.md).
+
 ## Verification
 
 After install + `.env` is populated:
@@ -159,6 +190,12 @@ After install + `.env` is populated:
 ```bash
 node src/cli.js list-analyzers       # should print: hello, codeQuality, contentModel, seo, security, cwv, accessibility
 node src/cli.js list-projects        # (none — run `audit init <slug>`)
+```
+
+If you set up Cloudflare:
+
+```bash
+node src/cli.js list-published       # should connect to R2 and print "No published reports."
 ```
 
 You're ready. See [README.md](README.md) for usage.

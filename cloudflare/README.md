@@ -62,6 +62,15 @@ The command uploads `report.html`, `report.pdf`, `report.md`, `findings.json`, a
 
 To rotate the URL (force a fresh hash), delete `projects/<slug>/.published.json` before publishing.
 
+## Listing what's already published
+
+```bash
+node src/cli.js list-published           # all reports in R2
+node src/cli.js list-published --active  # exclude expired ones
+```
+
+The CLI queries R2 directly (authoritative, works from any machine), enumerates hash prefixes via `ListObjectsV2`, fetches each `<hash>/meta.json` in parallel, and prints customer + URL + publish/expiry timestamps.
+
 ## Updating the Worker
 
 Edit `worker.js` and re-deploy:
