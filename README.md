@@ -147,6 +147,8 @@ After any source produces `.docx` files in `projects/<slug>/content/`, they are 
 
 Net effect: a 19 GB OneDrive content tree settles to ~500 MB on disk after first conversion, and subsequent syncs only transfer changed files.
 
+The `local` strategy also skips binary assets by default — images (`png`, `jpg`, `webp`, `svg`, `gif`, `heic`, …), video (`mp4`, `mov`, `webm`, …), audio, archives (`zip`, `tar`, …), design files (`psd`, `ai`, `sketch`, `fig`, …), and `pdf`. None of the analyzers consume these (they read `.md` or hit live URLs), so excluding them shrinks the sync substantially. If you genuinely need one of these in `content/`, list it in `content.include` (user includes are matched before the binary excludes, first-match wins).
+
 ### SharePoint-backed content (Adobe-managed tenants)
 
 If the customer authors in SharePoint, the recommended path is `local`, not direct API access. SharePoint sync via Microsoft Graph requires `Files.Read.All` + `Sites.Read.All` (or `Sites.Selected`), and **Adobe's tenant gates both of these behind admin consent for delegated *and* application permissions** — there is no self-consent path. `rclone` against SharePoint via OAuth has the same limitation (the underlying app registration would need the same permissions).

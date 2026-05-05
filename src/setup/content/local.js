@@ -34,6 +34,23 @@ export async function clone({ projectDir, contentConfig }) {
   const protected_ = Object.keys(cleaned.entries).length;
   console.log(`[content:local] manifest: ${protected_} .docx protected from re-sync${removed ? `, ${removed} stale entries pruned` : ''}`);
 
+  // Binary asset extensions: not consumed by any analyzer (which read .md files
+  // or hit live URLs). Excluding them shrinks sync size dramatically.
+  const BINARY_EXCLUDES = [
+    // images
+    '*.png', '*.jpg', '*.jpeg', '*.gif', '*.webp', '*.svg', '*.ico', '*.bmp', '*.tiff', '*.tif', '*.heic', '*.heif', '*.avif',
+    // video
+    '*.mp4', '*.mov', '*.avi', '*.mkv', '*.webm', '*.flv', '*.wmv', '*.m4v',
+    // audio
+    '*.mp3', '*.wav', '*.ogg', '*.m4a', '*.flac', '*.aac',
+    // archives
+    '*.zip', '*.tar', '*.tar.gz', '*.tgz', '*.gz', '*.rar', '*.7z',
+    // design / large source files
+    '*.psd', '*.ai', '*.indd', '*.sketch', '*.fig', '*.xd',
+    // misc large binaries
+    '*.pdf',
+  ];
+
   const args = [
     '-a', '--delete', '--stats', '--human-readable', '--info=progress2', '--no-inc-recursive',
     '--exclude=~$*',
@@ -43,8 +60,11 @@ export async function clone({ projectDir, contentConfig }) {
     '--exclude=*.md',
     `--exclude-from=${excludesFile}`,
   ];
+  // User includes go FIRST so they win the first-match rule (e.g. a project that
+  // genuinely needs PDFs or images can `"include": ["*.pdf"]`).
   for (const inc of contentConfig.include || []) args.push('--include', inc);
   for (const exc of contentConfig.exclude || []) args.push('--exclude', exc);
+  for (const exc of BINARY_EXCLUDES) args.push(`--exclude=${exc}`);
   args.push(src.endsWith('/') ? src : `${src}/`, `${dest}/`);
 
   try {
