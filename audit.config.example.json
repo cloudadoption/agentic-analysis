@@ -8,8 +8,13 @@
     }
   },
   "content": { "source": "da" },
-  "analyzers": ["codeQuality", "contentModel", "seo", "security", "accessibility"],
+  "analyzers": ["codeQuality", "contentModel", "seo", "security", "accessibility", "publishStatus"],
   "output": ["json", "html", "md", "pdf"],
   "cwv": { "device": "mobile" },
+  "eds": {
+    "liveUrl": "https://main--<repo>--<owner>.aem.live",
+    "previewUrl": "https://main--<repo>--<owner>.aem.page"
+  },
+  "publishStatus": { "sampleSize": 10 },
   "accessibility": { "pages": ["/"] }
 }

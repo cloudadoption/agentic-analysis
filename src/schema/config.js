@@ -38,6 +38,14 @@ export const ConfigSchema = z.object({
     path: z.string().optional(),
     skipCache: z.boolean().default(false),
   }).partial().optional(),
+  eds: z.object({
+    liveUrl: z.string().url().optional(),
+    previewUrl: z.string().url().optional(),
+    queryIndexPath: z.string().default('/query-index.json'),
+  }).partial().optional(),
+  publishStatus: z.object({
+    sampleSize: z.number().int().positive().default(10),
+  }).partial().optional(),
   accessibility: z.object({ pages: z.array(z.string()).default(['/']) }).partial().optional(),
 });
 

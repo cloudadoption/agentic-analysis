@@ -5,8 +5,9 @@ import * as seo from './seo.js';
 import * as security from './security.js';
 import * as cwv from './cwv.js';
 import * as accessibility from './accessibility.js';
+import * as publishStatus from './publishStatus.js';
 
-const registry = { hello, codeQuality, contentModel, seo, security, cwv, accessibility };
+const registry = { hello, codeQuality, contentModel, seo, security, cwv, accessibility, publishStatus };
 
 export function getAnalyzer(name) {
   const a = registry[name];

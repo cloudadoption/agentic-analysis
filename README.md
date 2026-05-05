@@ -17,6 +17,7 @@ node src/cli.js run --project <slug>   # clone, analyze, synthesize, render, ope
 | `security` | Deterministic checks: response headers (HSTS, CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy), HTTPS enforcement, server fingerprinting, plus `npm audit` if `code/package-lock.json` exists. | `fetch` + npm |
 | `accessibility` | Headless `axe-core` scan of each URL listed in `accessibility.pages`. Renders the page in Chromium, runs the full axe ruleset, emits one finding per violation with affected nodes. | Puppeteer + @axe-core/puppeteer |
 | `cwv` | Vendored [ramboz/cwv-agent](https://github.com/ramboz/cwv-agent) — multi-agent CWV / performance analysis using PSI, HAR, code coverage, and rules. Emits a summary finding pointing at the full markdown report. | Vendored cwv-agent (LangChain + Gemini) |
+| `publishStatus` | Verifies that what EDS thinks is published actually serves on the customer's prod URL. Pulls `query-index.json` from `eds.liveUrl`, cross-references with `<site>/sitemap.xml`, then samples paths and compares status codes + `<main>` markup hash on both URLs. Flags routing failures, CDN drift, draft leakage. | `fetch` + cheerio |
 
 After all analyzers complete, a **synthesis** step makes one Bedrock call to produce:
 - a 2–4 sentence executive summary,
@@ -116,6 +117,10 @@ If only one project exists, `--project` / `--all` is optional. With multiple pro
 | `cwv.model` | Override cwv-agent model (e.g. `gemini-2.5-pro`). |
 | `cwv.skipCache` | `true` to force fresh CWV data collection. |
 | `accessibility.pages` | Array of paths to scan with axe (default `["/"]`). |
+| `eds.liveUrl` | EDS live URL (e.g. `https://main--<repo>--<owner>.aem.live`). Auto-derived from `source.code.repo` if absent. |
+| `eds.previewUrl` | EDS preview URL (`.aem.page`). Auto-derived if absent. Currently advisory; not consumed by any analyzer. |
+| `eds.queryIndexPath` | Path to query-index on EDS live (default `/query-index.json`). |
+| `publishStatus.sampleSize` | Number of paths to sample when comparing prod vs EDS live (default `10`). |
 
 ### Content source examples
 
