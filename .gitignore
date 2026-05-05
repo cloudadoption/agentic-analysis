@@ -21,6 +21,7 @@ gemini.json
 projects/*
 !projects/.gitkeep
 projects/*/.cache/
+projects/*/.published.json
 
 # cwv-agent runtime cache
 src/analyzers/cwv/vendor/.cache/

@@ -1,0 +1,14 @@
+name = "audit-bbird-live"
+main = "worker.js"
+compatibility_date = "2025-05-01"
+
+[[r2_buckets]]
+binding = "AUDIT_REPORTS"
+bucket_name = "audit-reports"
+
+[[routes]]
+pattern = "audit.bbird.live/*"
+zone_name = "bbird.live"
+
+[observability]
+enabled = true

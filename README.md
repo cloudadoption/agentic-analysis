@@ -75,6 +75,8 @@ node src/cli.js setup [opts]            # clone code + content
 node src/cli.js run [opts]              # setup + analyzers + synthesize + render
 node src/cli.js render [opts]           # re-render from existing findings.json (no re-run)
 node src/cli.js clean [opts]            # delete generated artifacts; keep audit.config.json
+node src/cli.js publish [opts]          # upload reports to Cloudflare R2 under an unguessable URL (90-day expiry)
+node src/cli.js list-published [opts]   # list reports currently in R2 with their URLs + expiry status
 ```
 
 Common options for `setup` / `run` / `render` / `clean`:
@@ -89,6 +91,10 @@ Common options for `setup` / `run` / `render` / `clean`:
 ### Caching
 
 After each successful analyzer run, its findings are cached to `projects/<slug>/.cache/<analyzer>.json`. The next `audit run` reuses the cache (logged as `↻ <analyzer> (cached …)`) so you only re-pay for analyzers you actually change. Failed analyzers don't cache, so they retry automatically. Use `--rerun <name>` to force a fresh run for one, or `clean` to wipe everything and start over.
+
+### Online delivery
+
+`audit publish --project <slug>` uploads `report.html`, `report.pdf`, `report.md`, and `findings.json` to Cloudflare R2 under a 32-byte unguessable hash. The companion Worker at https://audit.bbird.live serves the files (and a tiny landing page at `/<hash>/`) with `X-Robots-Tag: noindex, nofollow` and `robots.txt` disallowing everything. URLs auto-expire 90 days after publish. Re-publishing overwrites the same hash, so URLs stay stable across re-runs. To rotate, delete `projects/<slug>/.published.json` before publishing. One-time setup is in [cloudflare/README.md](cloudflare/README.md).
 
 If only one project exists, `--project` / `--all` is optional. With multiple projects, you must pick. Multi-project runs are sequential with `[<slug>]`-prefixed logs; one failing does not abort the rest (process exits non-zero at the end if any failed).
 

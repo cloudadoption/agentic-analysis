@@ -13,6 +13,7 @@
   "dependencies": {
     "@adobe/helix-docx2md": "^1.9.25",
     "@aws-crypto/sha256-js": "5.2.0",
+    "@aws-sdk/client-s3": "^3.1042.0",
     "@aws-sdk/credential-provider-node": "3.972.18",
     "@aws-sdk/types": "3.775.0",
     "@axe-core/puppeteer": "^4.10.0",

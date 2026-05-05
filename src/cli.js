@@ -12,6 +12,8 @@ import { cloneContent } from './setup/cloneContent.js';
 import { runAnalyzers } from './orchestrator.js';
 import { synthesize } from './synthesize.js';
 import { invalidate, listCached } from './cache.js';
+import { publish } from './publish.js';
+import { listPublished } from './list-published.js';
 import { render } from './renderers/index.js';
 import { listAnalyzers } from './analyzers/index.js';
 
@@ -76,6 +78,48 @@ program
         await rm(path.join(p.dir, a), { recursive: true, force: true });
       }
       console.log(prefix(p.slug), `cleaned ${p.present.length} item(s)`);
+    }
+  });
+
+program
+  .command('publish')
+  .description('Upload generated reports to Cloudflare R2 under an unguessable URL. URLs auto-expire after 90 days. Re-publish overwrites the existing hash for the project.')
+  .option('-p, --project <slug>', 'project slug (repeatable)', collect, [])
+  .option('-a, --all', 'publish every project', false)
+  .action(async (opts) => {
+    const targets = await resolveTargets(repoRoot, { slugs: opts.project, all: opts.all });
+    let failed = 0;
+    for (const t of targets) {
+      try {
+        console.log(prefix(t.slug), 'publishing…');
+        const { urls, expiresAt, uploaded } = await publish({ projectDir: t.dir, slug: t.slug, config: t.config });
+        console.log(prefix(t.slug), `✓ uploaded ${uploaded.length} file(s); expires ${expiresAt}`);
+        Object.entries(urls).forEach(([k, v]) => console.log(`    ${k.padEnd(15)} ${v}`));
+      } catch (e) {
+        failed++;
+        console.error(prefix(t.slug), `✗ ${e.message}`);
+      }
+    }
+    if (failed) process.exit(1);
+  });
+
+program
+  .command('list-published')
+  .description('List reports published to Cloudflare R2, with their unguessable URLs and expiry status.')
+  .option('--active', 'show only non-expired reports', false)
+  .action(async (opts) => {
+    const records = await listPublished({ activeOnly: opts.active });
+    if (!records.length) {
+      console.log('No published reports.');
+      return;
+    }
+    for (const r of records) {
+      const status = r.expired ? '⛔ EXPIRED' : `expires in ${r.daysRemaining}d (${r.expiresAt})`;
+      console.log(`${r.project}${r.customer ? `  (${r.customer})` : ''}`);
+      console.log(`  ${r.url}`);
+      console.log(`  Published ${r.publishedAt}  ·  ${status}`);
+      if (r.site) console.log(`  Site: ${r.site}`);
+      console.log('');
     }
   });
 
