@@ -6,6 +6,13 @@ import { loadManifest, saveManifest, writeExcludes } from './manifest.js';
 
 const CONCURRENCY = 8;
 
+function stripEmbeddedImages(md) {
+  return md
+    .replace(/!\[([^\]]*)\]\(data:[^)]*\)/g, '![$1]()')
+    .replace(/<img\b([^>]*?)\bsrc="data:[^"]*"([^>]*)>/gi, '<img$1src=""$2>')
+    .replace(/<img\b([^>]*?)\bsrc='data:[^']*'([^>]*)>/gi, "<img$1src=''$2>");
+}
+
 export async function convertAll({ contentDir, projectDir }) {
   const files = await fg('**/*.docx', {
     cwd: contentDir,
@@ -36,7 +43,7 @@ export async function convertAll({ contentDir, projectDir }) {
         const buf = await readFile(docxAbs);
         const md = await docx2md(buf, {});
         await mkdir(path.dirname(mdAbs), { recursive: true });
-        await writeFile(mdAbs, md);
+        await writeFile(mdAbs, stripEmbeddedImages(md));
         manifest.entries[rel] = {
           sourceMtime: docxStat.mtimeMs,
           convertedAt: new Date().toISOString(),
