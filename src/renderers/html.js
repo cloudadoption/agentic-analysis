@@ -50,6 +50,97 @@ function categoryWeight(findings) {
   return findings.reduce((acc, f) => acc + (f.severity === 'critical' ? 100 : f.severity === 'warning' ? 10 : f.severity === 'info' ? 1 : 0), 0);
 }
 
+function zoneColor(value, { good, poor }) {
+  if (value <= good) return 'var(--success)';
+  if (value < poor) return 'var(--warning)';
+  return 'var(--critical)';
+}
+
+function formatMetric(value, unit) {
+  if (unit === 'score') return value.toFixed(3).replace(/\.?0+$/, '') || '0';
+  if (unit === 'ms') return value >= 1000 ? `${(value / 1000).toFixed(2)}s` : `${Math.round(value)}ms`;
+  return String(value);
+}
+
+function renderCwvChart(metrics) {
+  const rowH = 26;
+  const labelW = 60;
+  const valueW = 70;
+  const barX = labelW;
+  const barW = 360;
+  const totalW = labelW + barW + valueW;
+  const totalH = metrics.length * rowH + 16;
+
+  const rows = metrics.map((m, i) => {
+    const y = i * rowH + 14;
+    // scale: 0 → max(poor * 1.4, value * 1.1)
+    const scaleMax = Math.max(m.thresholds.poor * 1.4, m.value * 1.1, m.thresholds.poor + 0.0001);
+    const x = (v) => barX + Math.min(barW, (v / scaleMax) * barW);
+    const goodEnd = x(m.thresholds.good);
+    const poorStart = x(m.thresholds.poor);
+    const valW = Math.max(2, x(m.value) - barX);
+    const color = zoneColor(m.value, m.thresholds);
+    return `
+      <text x="0" y="${y + 12}" class="muted">${escape(m.label)}</text>
+      <rect x="${barX}" y="${y + 4}" width="${goodEnd - barX}" height="14" fill="var(--success)" opacity="0.18"/>
+      <rect x="${goodEnd}" y="${y + 4}" width="${poorStart - goodEnd}" height="14" fill="var(--warning)" opacity="0.18"/>
+      <rect x="${poorStart}" y="${y + 4}" width="${barX + barW - poorStart}" height="14" fill="var(--critical)" opacity="0.18"/>
+      <rect x="${barX}" y="${y + 4}" width="${valW}" height="14" fill="${color}"/>
+      <text x="${barX + barW + 8}" y="${y + 14}">${escape(formatMetric(m.value, m.unit))}</text>
+    `;
+  }).join('');
+
+  return `<div class="chart">
+    <h3>Core Web Vitals</h3>
+    <svg viewBox="0 0 ${totalW} ${totalH}" role="img" aria-label="Core Web Vitals metrics">${rows}</svg>
+    <div class="legend"><span class="lg-good">Good</span><span class="lg-ni">Needs improvement</span><span class="lg-poor">Poor</span></div>
+  </div>`;
+}
+
+function renderHeatmap(findings) {
+  const analyzers = [...new Set(findings.map((f) => f.analyzer))].sort();
+  if (!analyzers.length) return '';
+  const sevs = ['critical', 'warning', 'info', 'success'];
+  const grid = {};
+  let max = 0;
+  for (const a of analyzers) {
+    grid[a] = { critical: 0, warning: 0, info: 0, success: 0 };
+  }
+  for (const f of findings) {
+    grid[f.analyzer][f.severity]++;
+    if (grid[f.analyzer][f.severity] > max) max = grid[f.analyzer][f.severity];
+  }
+
+  const rowH = 26;
+  const labelW = 110;
+  const cellW = 64;
+  const totalW = labelW + sevs.length * cellW + 8;
+  const totalH = analyzers.length * rowH + 28;
+  const sevColor = { critical: 'var(--critical)', warning: 'var(--warning)', info: 'var(--info)', success: 'var(--success)' };
+
+  const header = sevs.map((s, i) =>
+    `<text x="${labelW + i * cellW + cellW / 2}" y="14" text-anchor="middle" class="muted">${s}</text>`).join('');
+
+  const rows = analyzers.map((a, ri) => {
+    const y = 24 + ri * rowH;
+    const label = `<text x="${labelW - 8}" y="${y + 16}" text-anchor="end" class="muted">${escape(a)}</text>`;
+    const cells = sevs.map((s, ci) => {
+      const n = grid[a][s];
+      const opacity = max ? 0.15 + 0.75 * (n / max) : 0;
+      const cx = labelW + ci * cellW;
+      const fill = n ? sevColor[s] : 'var(--panel)';
+      return `<rect x="${cx + 2}" y="${y + 2}" width="${cellW - 4}" height="${rowH - 4}" rx="3" fill="${fill}" opacity="${n ? opacity : 0.25}"/>`
+        + (n ? `<text x="${cx + cellW / 2}" y="${y + 18}" text-anchor="middle">${n}</text>` : '');
+    }).join('');
+    return label + cells;
+  }).join('');
+
+  return `<div class="chart">
+    <h3>Findings — Analyzer × Severity</h3>
+    <svg viewBox="0 0 ${totalW} ${totalH}" role="img" aria-label="Analyzer by severity heatmap">${header}${rows}</svg>
+  </div>`;
+}
+
 function buildHtml({ findings, synthesis, config, slug }) {
   const c = counts(findings);
   const generatedAt = new Date().toISOString();
@@ -64,6 +155,10 @@ function buildHtml({ findings, synthesis, config, slug }) {
     recommendation: synthesis?.categories?.[cat]?.recommendation || '',
     findings: byCategory[cat].slice().sort((a, b) => SEV_RANK[a.severity] - SEV_RANK[b.severity]),
   })) }).replaceAll('</', '<\\/');
+
+  const cwvMetrics = (findings.find((f) => f.metrics && f.metrics.length) || {}).metrics || [];
+  const cwvChart = cwvMetrics.length ? renderCwvChart(cwvMetrics) : '';
+  const heatmap = renderHeatmap(findings);
 
   return `<!doctype html>
 <html lang="en">
@@ -163,6 +258,23 @@ function buildHtml({ findings, synthesis, config, slug }) {
   .row-detail .evidence .file { color: var(--muted); margin-bottom: 4px; word-break: break-all; }
   .empty { padding: 40px 32px; color: var(--muted); text-align: center; }
   .hidden { display: none; }
+
+  .charts { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 16px; padding: 16px 32px; border-bottom: 1px solid var(--border); background: var(--panel); }
+  @media (max-width: 900px) { .charts { grid-template-columns: 1fr; } }
+  .chart { background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; }
+  .chart h3 { margin: 0 0 10px; font-size: 11px; text-transform: uppercase; color: var(--muted); letter-spacing: 0.06em; font-weight: 600; }
+  .chart svg { display: block; width: 100%; height: auto; }
+  .chart .legend { display: flex; gap: 14px; font-size: 11px; color: var(--muted); margin-top: 8px; flex-wrap: wrap; }
+  .chart .legend span::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  .chart .legend .lg-good::before { background: var(--success); }
+  .chart .legend .lg-ni::before { background: var(--warning); }
+  .chart .legend .lg-poor::before { background: var(--critical); }
+  .chart text { fill: var(--text); font: 11px -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+  .chart text.muted { fill: var(--muted); }
+  @media print {
+    .chart { background: var(--panel); }
+    .charts { page-break-inside: avoid; }
+  }
 </style>
 </head>
 <body>
@@ -192,6 +304,8 @@ ${synthesis ? `<section class="exec">
   <div class="stat success"><div class="n">${c.success}</div><div class="l">Success</div></div>
   <div class="stat"><div class="n">${findings.length}</div><div class="l">Total</div></div>
 </section>
+
+${(cwvChart || heatmap) ? `<section class="charts">${cwvChart}${heatmap}</section>` : ''}
 
 <section class="controls">
   <input id="q" type="search" placeholder="Filter findings…" />

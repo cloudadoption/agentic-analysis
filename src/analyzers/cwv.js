@@ -108,6 +108,8 @@ export async function run({ config, projectDir }) {
   const summaryMatch = md.match(/###\s*\*\*Executive Summary\*\*([\s\S]*?)(?=\n###\s*\*\*|\Z)/i);
   const summaryText = summaryMatch ? summaryMatch[1].trim() : md.slice(0, 1500);
 
+  const metrics = await readCwvMetrics({ cacheDir, slug, device });
+
   return [f({
     id: 'cwv-report',
     severity: 'info',
@@ -116,5 +118,35 @@ export async function run({ config, projectDir }) {
     description: summaryText.slice(0, 4000),
     recommendation: `Full report saved to projects/${path.basename(projectDir)}/cwv/${latest}`,
     evidence: [{ file: `cwv/${latest}`, url: config.site }],
+    ...(metrics.length ? { metrics } : {}),
   })];
+}
+
+async function readCwvMetrics({ cacheDir, slug, device }) {
+  try {
+    const psi = JSON.parse(await readFile(path.join(cacheDir, `${slug}.${device}.psi.json`), 'utf8'));
+    const audits = psi?.data?.lighthouseResult?.audits || {};
+    const fieldMetrics = psi?.data?.loadingExperience?.metrics || {};
+    const num = (k) => audits?.[k]?.numericValue;
+
+    const lcpField = fieldMetrics.LARGEST_CONTENTFUL_PAINT_MS?.percentile;
+    const clsField = fieldMetrics.CUMULATIVE_LAYOUT_SHIFT_SCORE?.percentile;
+    const inpField = fieldMetrics.INTERACTION_TO_NEXT_PAINT?.percentile;
+    const ttfbField = fieldMetrics.EXPERIMENTAL_TIME_TO_FIRST_BYTE?.percentile;
+
+    const out = [];
+    const push = (key, label, value, unit, thresholds) => {
+      if (value == null || Number.isNaN(value)) return;
+      out.push({ key, label, value, unit, thresholds });
+    };
+    push('lcp', 'LCP', lcpField ?? num('largest-contentful-paint'), 'ms', { good: 2500, poor: 4000 });
+    push('cls', 'CLS', (clsField != null ? clsField / 100 : num('cumulative-layout-shift')), 'score', { good: 0.1, poor: 0.25 });
+    if (inpField != null) push('inp', 'INP', inpField, 'ms', { good: 200, poor: 500 });
+    else push('tbt', 'TBT', num('total-blocking-time'), 'ms', { good: 200, poor: 600 });
+    push('fcp', 'FCP', num('first-contentful-paint'), 'ms', { good: 1800, poor: 3000 });
+    push('ttfb', 'TTFB', ttfbField ?? num('server-response-time'), 'ms', { good: 800, poor: 1800 });
+    return out;
+  } catch {
+    return [];
+  }
 }

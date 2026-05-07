@@ -14,6 +14,14 @@ export const Evidence = z.object({
   url: z.string().url().optional(),
 });
 
+export const Metric = z.object({
+  key: z.string(),
+  label: z.string(),
+  value: z.number(),
+  unit: z.enum(['ms', 's', 'score', 'count']).default('ms'),
+  thresholds: z.object({ good: z.number(), poor: z.number() }),
+});
+
 export const FindingSchema = z.object({
   id: z.string(),
   analyzer: z.string(),
@@ -23,6 +31,7 @@ export const FindingSchema = z.object({
   description: z.string(),
   recommendation: z.string().optional(),
   evidence: z.array(Evidence).default([]),
+  metrics: z.array(Metric).optional(),
 });
 
 export const FindingsArraySchema = z.array(FindingSchema);
