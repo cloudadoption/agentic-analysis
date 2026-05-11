@@ -1,9 +1,26 @@
 import { spawn } from 'node:child_process';
-import { stat, readFile, copyFile, readdir, mkdir } from 'node:fs/promises';
+import { stat, readFile, copyFile, readdir, mkdir, unlink } from 'node:fs/promises';
 import path from 'node:path';
 
 
 export const meta = { name: 'cwv', skills: [], tools: [] };
+
+export async function clearUpstreamCache({ config }) {
+  const cwvCfg = config.cwv || {};
+  const device = cwvCfg.device || 'mobile';
+  const cwvAgentPath = cwvCfg.path || DEFAULT_CWV_AGENT_PATH;
+  const cacheDir = path.join(cwvAgentPath, '.cache');
+  const slug = domainSlug(config.site);
+  const prefix = `${slug}.${device}.`;
+  let entries = [];
+  try { entries = await readdir(cacheDir); } catch { return []; }
+  const removed = [];
+  for (const name of entries) {
+    if (!name.startsWith(prefix)) continue;
+    try { await unlink(path.join(cacheDir, name)); removed.push(name); } catch {}
+  }
+  return removed;
+}
 
 import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

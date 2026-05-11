@@ -16,6 +16,7 @@ import { publish } from './publish.js';
 import { listPublished } from './list-published.js';
 import { render } from './renderers/index.js';
 import { listAnalyzers } from './analyzers/index.js';
+import { clearUpstreamCache as clearCwvUpstreamCache } from './analyzers/cwv.js';
 
 const repoRoot = process.cwd();
 const program = new Command();
@@ -156,6 +157,7 @@ program
   .option('--skip-setup', 'skip clone step', false)
   .option('--refresh', 'force refresh of clones', false)
   .option('-r, --rerun <name>', 'invalidate cache for an analyzer (repeatable; "all" clears every analyzer)', collect, [])
+  .option('--fresh <name>', 'also bust upstream third-party caches for the analyzer (cwv: PSI/CrUX/Lighthouse vendor cache). Implies --rerun. Repeatable.', collect, [])
   .option('--no-open', 'do not open the HTML report when done')
   .action(async (opts) => {
     const targets = await resolveTargets(repoRoot, { slugs: opts.project, all: opts.all });
@@ -216,8 +218,15 @@ async function setupOne({ slug, dir, config }, refresh) {
 async function runOne({ slug, dir, config }, opts) {
   if (!opts.skipSetup) await setupOne({ slug, dir, config }, opts.refresh);
 
-  if (opts.rerun?.length) {
-    const targets = opts.rerun.includes('all') ? 'all' : opts.rerun;
+  const freshList = opts.fresh || [];
+  if (freshList.includes('cwv') || (freshList.includes('all'))) {
+    const removed = await clearCwvUpstreamCache({ config });
+    console.log(prefix(slug), `cwv upstream cache cleared: ${removed.length} file(s)`);
+  }
+
+  const rerunList = [...(opts.rerun || []), ...freshList];
+  if (rerunList.length) {
+    const targets = rerunList.includes('all') ? 'all' : [...new Set(rerunList)];
     await invalidate(dir, targets);
     console.log(prefix(slug), `cache invalidated: ${targets === 'all' ? 'all' : targets.join(', ')}`);
   }
