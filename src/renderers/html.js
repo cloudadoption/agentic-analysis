@@ -77,40 +77,47 @@ function renderCwvChart(metrics) {
   const totalW = labelW + barW + valueW;
   const totalH = metrics.length * rowH + 16;
 
+  const gradientId = 'perfGradient';
   const rows = metrics.map((m, i) => {
     const y = i * rowH + 14;
-    const higherBetter = m.direction === 'higher-is-better';
-    // For lower-is-better: scale 0 → max(poor*1.4, value*1.1).
-    // For higher-is-better: fixed 0 → max (e.g. 100 for score).
-    const scaleMax = higherBetter
-      ? Math.max(m.thresholds.good * 1.05, m.value * 1.05, 100)
-      : Math.max(m.thresholds.poor * 1.4, m.value * 1.1, m.thresholds.poor + 0.0001);
+    if (m.direction === 'higher-is-better') {
+      const scaleMax = Math.max(m.thresholds.good * 1.05, m.value * 1.05, 100);
+      const x = (v) => barX + Math.min(barW, (v / scaleMax) * barW);
+      const valX = x(m.value);
+      return `
+        <text x="0" y="${y + 12}" class="muted">${escape(m.label)}</text>
+        <rect x="${barX}" y="${y + 4}" width="${barW}" height="14" rx="2" fill="url(#${gradientId})" opacity="0.45"/>
+        <rect x="${barX}" y="${y + 4}" width="${barW}" height="14" rx="2" fill="none" stroke="var(--border)"/>
+        <line x1="${valX}" y1="${y + 1}" x2="${valX}" y2="${y + 21}" stroke="var(--text)" stroke-width="2"/>
+        <circle cx="${valX}" cy="${y + 11}" r="3.5" fill="var(--text)"/>
+        <text x="${barX + barW + 8}" y="${y + 14}">${escape(formatMetric(m.value, m.unit))}</text>
+      `;
+    }
+    const scaleMax = Math.max(m.thresholds.poor * 1.4, m.value * 1.1, m.thresholds.poor + 0.0001);
     const x = (v) => barX + Math.min(barW, (v / scaleMax) * barW);
     const tGood = x(m.thresholds.good);
     const tPoor = x(m.thresholds.poor);
     const valW = Math.max(2, x(m.value) - barX);
     const color = zoneColor(m.value, m.thresholds, m.direction);
-    // Band order depends on direction.
-    const bands = higherBetter ? `
-      <rect x="${barX}" y="${y + 4}" width="${tPoor - barX}" height="14" fill="var(--critical)" opacity="0.18"/>
-      <rect x="${tPoor}" y="${y + 4}" width="${tGood - tPoor}" height="14" fill="var(--warning)" opacity="0.18"/>
-      <rect x="${tGood}" y="${y + 4}" width="${barX + barW - tGood}" height="14" fill="var(--success)" opacity="0.18"/>
-    ` : `
+    return `
+      <text x="0" y="${y + 12}" class="muted">${escape(m.label)}</text>
       <rect x="${barX}" y="${y + 4}" width="${tGood - barX}" height="14" fill="var(--success)" opacity="0.18"/>
       <rect x="${tGood}" y="${y + 4}" width="${tPoor - tGood}" height="14" fill="var(--warning)" opacity="0.18"/>
       <rect x="${tPoor}" y="${y + 4}" width="${barX + barW - tPoor}" height="14" fill="var(--critical)" opacity="0.18"/>
-    `;
-    return `
-      <text x="0" y="${y + 12}" class="muted">${escape(m.label)}</text>
-      ${bands}
       <rect x="${barX}" y="${y + 4}" width="${valW}" height="14" fill="${color}"/>
       <text x="${barX + barW + 8}" y="${y + 14}">${escape(formatMetric(m.value, m.unit))}</text>
     `;
   }).join('');
 
+  const defs = `<defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0%" stop-color="var(--critical)"/>
+    <stop offset="50%" stop-color="var(--warning)"/>
+    <stop offset="100%" stop-color="var(--success)"/>
+  </linearGradient></defs>`;
+
   return `<div class="chart">
     <h3>Core Web Vitals</h3>
-    <svg viewBox="0 0 ${totalW} ${totalH}" role="img" aria-label="Core Web Vitals metrics">${rows}</svg>
+    <svg viewBox="0 0 ${totalW} ${totalH}" role="img" aria-label="Core Web Vitals metrics">${defs}${rows}</svg>
     <div class="legend"><span class="lg-good">Good</span><span class="lg-ni">Needs improvement</span><span class="lg-poor">Poor</span></div>
   </div>`;
 }
