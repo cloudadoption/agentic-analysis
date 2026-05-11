@@ -50,15 +50,21 @@ function categoryWeight(findings) {
   return findings.reduce((acc, f) => acc + (f.severity === 'critical' ? 100 : f.severity === 'warning' ? 10 : f.severity === 'info' ? 1 : 0), 0);
 }
 
-function zoneColor(value, { good, poor }) {
+function zoneColor(value, { good, poor }, direction = 'lower-is-better') {
+  if (direction === 'higher-is-better') {
+    if (value >= good) return 'var(--success)';
+    if (value > poor) return 'var(--warning)';
+    return 'var(--critical)';
+  }
   if (value <= good) return 'var(--success)';
   if (value < poor) return 'var(--warning)';
   return 'var(--critical)';
 }
 
 function formatMetric(value, unit) {
-  if (unit === 'score') return value.toFixed(3).replace(/\.?0+$/, '') || '0';
+  if (unit === 'score') return value >= 1 ? Math.round(value).toString() : (value.toFixed(3).replace(/\.?0+$/, '') || '0');
   if (unit === 'ms') return value >= 1000 ? `${(value / 1000).toFixed(2)}s` : `${Math.round(value)}ms`;
+  if (unit === 'percent') return `${Math.round(value)}%`;
   return String(value);
 }
 
@@ -73,18 +79,30 @@ function renderCwvChart(metrics) {
 
   const rows = metrics.map((m, i) => {
     const y = i * rowH + 14;
-    // scale: 0 → max(poor * 1.4, value * 1.1)
-    const scaleMax = Math.max(m.thresholds.poor * 1.4, m.value * 1.1, m.thresholds.poor + 0.0001);
+    const higherBetter = m.direction === 'higher-is-better';
+    // For lower-is-better: scale 0 → max(poor*1.4, value*1.1).
+    // For higher-is-better: fixed 0 → max (e.g. 100 for score).
+    const scaleMax = higherBetter
+      ? Math.max(m.thresholds.good * 1.05, m.value * 1.05, 100)
+      : Math.max(m.thresholds.poor * 1.4, m.value * 1.1, m.thresholds.poor + 0.0001);
     const x = (v) => barX + Math.min(barW, (v / scaleMax) * barW);
-    const goodEnd = x(m.thresholds.good);
-    const poorStart = x(m.thresholds.poor);
+    const tGood = x(m.thresholds.good);
+    const tPoor = x(m.thresholds.poor);
     const valW = Math.max(2, x(m.value) - barX);
-    const color = zoneColor(m.value, m.thresholds);
+    const color = zoneColor(m.value, m.thresholds, m.direction);
+    // Band order depends on direction.
+    const bands = higherBetter ? `
+      <rect x="${barX}" y="${y + 4}" width="${tPoor - barX}" height="14" fill="var(--critical)" opacity="0.18"/>
+      <rect x="${tPoor}" y="${y + 4}" width="${tGood - tPoor}" height="14" fill="var(--warning)" opacity="0.18"/>
+      <rect x="${tGood}" y="${y + 4}" width="${barX + barW - tGood}" height="14" fill="var(--success)" opacity="0.18"/>
+    ` : `
+      <rect x="${barX}" y="${y + 4}" width="${tGood - barX}" height="14" fill="var(--success)" opacity="0.18"/>
+      <rect x="${tGood}" y="${y + 4}" width="${tPoor - tGood}" height="14" fill="var(--warning)" opacity="0.18"/>
+      <rect x="${tPoor}" y="${y + 4}" width="${barX + barW - tPoor}" height="14" fill="var(--critical)" opacity="0.18"/>
+    `;
     return `
       <text x="0" y="${y + 12}" class="muted">${escape(m.label)}</text>
-      <rect x="${barX}" y="${y + 4}" width="${goodEnd - barX}" height="14" fill="var(--success)" opacity="0.18"/>
-      <rect x="${goodEnd}" y="${y + 4}" width="${poorStart - goodEnd}" height="14" fill="var(--warning)" opacity="0.18"/>
-      <rect x="${poorStart}" y="${y + 4}" width="${barX + barW - poorStart}" height="14" fill="var(--critical)" opacity="0.18"/>
+      ${bands}
       <rect x="${barX}" y="${y + 4}" width="${valW}" height="14" fill="${color}"/>
       <text x="${barX + barW + 8}" y="${y + 14}">${escape(formatMetric(m.value, m.unit))}</text>
     `;

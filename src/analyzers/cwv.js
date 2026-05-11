@@ -135,10 +135,12 @@ async function readCwvMetrics({ cacheDir, slug, device }) {
     const ttfbField = fieldMetrics.EXPERIMENTAL_TIME_TO_FIRST_BYTE?.percentile;
 
     const out = [];
-    const push = (key, label, value, unit, thresholds) => {
+    const push = (key, label, value, unit, thresholds, direction = 'lower-is-better') => {
       if (value == null || Number.isNaN(value)) return;
-      out.push({ key, label, value, unit, thresholds });
+      out.push({ key, label, value, unit, thresholds, direction });
     };
+    const perfScore = psi?.data?.lighthouseResult?.categories?.performance?.score;
+    if (perfScore != null) push('lhs-perf', 'Perf', perfScore * 100, 'score', { good: 90, poor: 50 }, 'higher-is-better');
     push('lcp', 'LCP', lcpField ?? num('largest-contentful-paint'), 'ms', { good: 2500, poor: 4000 });
     push('cls', 'CLS', (clsField != null ? clsField / 100 : num('cumulative-layout-shift')), 'score', { good: 0.1, poor: 0.25 });
     if (inpField != null) push('inp', 'INP', inpField, 'ms', { good: 200, poor: 500 });
