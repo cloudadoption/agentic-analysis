@@ -13,10 +13,10 @@ node src/cli.js run --project <slug>   # clone, analyze, synthesize, render, ope
 |---|---|---|
 | `codeQuality` | Audits the customer's code repo (`code/`) against `building-blocks` and `testing-blocks` skills using a Claude agent loop with file-read tools. Returns mixed-severity findings (warnings, info, success). | Bedrock (Claude) |
 | `contentModel` | Audits content (`content/`) against the `content-modeling` skill. `.docx` files are auto-converted to `.md` via `@adobe/helix-docx2md` during setup. | Bedrock (Claude) |
-| `seo` | Deterministic checks: `<title>`, meta description, canonical, OG/Twitter tags, `<html lang>`, headings, image alt, JSON-LD, `robots.txt`, `sitemap.xml`. | `fetch` + cheerio |
+| `seo` | Deterministic checks: `<title>`, meta description, canonical, OG/Twitter tags, `<html lang>`, headings, image alt, JSON-LD, `robots.txt`, `sitemap.xml`, plus generative-AI crawler accessibility (training vs. answer-engine bot policy in `robots.txt`, `ai.txt`, `llms.txt`, `noai` headers/meta — see `.claude/skills/genai-crawler-accessibility/`). | `fetch` + cheerio |
 | `security` | Deterministic checks: response headers (HSTS, CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy), HTTPS enforcement, server fingerprinting, plus `npm audit` if `code/package-lock.json` exists. | `fetch` + npm |
 | `accessibility` | Headless `axe-core` scan of each URL listed in `accessibility.pages`. Renders the page in Chromium, runs the full axe ruleset, emits one finding per violation with affected nodes. | Puppeteer + @axe-core/puppeteer |
-| `cwv` | Vendored [ramboz/cwv-agent](https://github.com/ramboz/cwv-agent) — multi-agent CWV / performance analysis using PSI, HAR, code coverage, and rules. Emits a summary finding pointing at the full markdown report. | Vendored cwv-agent (LangChain + Gemini) |
+| `cwv` | Vendored [ramboz/cwv-agent](https://github.com/ramboz/cwv-agent) — multi-agent CWV / performance analysis using PSI, HAR, code coverage, and rules. Emits a summary finding pointing at the full markdown report, plus structured metrics (LCP / CLS / INP-or-TBT / FCP / TTFB and the Lighthouse performance score) extracted from the PSI cache and rendered as an inline chart in the HTML report. | Vendored cwv-agent (LangChain + Gemini) |
 | `publishStatus` | Verifies that what EDS thinks is published actually serves on the customer's prod URL. Pulls `query-index.json` from `eds.liveUrl`, cross-references with `<site>/sitemap.xml`, then samples paths and compares status codes + `<main>` markup hash on both URLs. Flags routing failures, CDN drift, draft leakage. | `fetch` + cheerio |
 
 After all analyzers complete, a **synthesis** step makes one Bedrock call to produce:
@@ -86,12 +86,22 @@ Common options for `setup` / `run` / `render` / `clean`:
 - `--skip-setup` *(run only)* — skip the clone step.
 - `--refresh` *(setup, run)* — force a fresh git fetch / content sync.
 - `--rerun <name>` *(run only)* — invalidate the cached findings for one analyzer (repeatable; `--rerun all` invalidates everything for the project).
+- `--fresh <name>` *(run only)* — also bust the analyzer's upstream third-party cache, then `--rerun`. For `cwv`, deletes the vendor cwv-agent cache files (`src/analyzers/cwv/vendor/.cache/<host>.<device>.*`) so the next run hits PSI / CrUX / Lighthouse fresh. Useful when PSI returned an incomplete lab run (e.g. `null` performance score).
 - `--no-open` *(run, render)* — do not open the HTML report when done.
 - `-y, --yes` *(clean only)* — skip the y/N confirmation prompt.
 
 ### Caching
 
 After each successful analyzer run, its findings are cached to `projects/<slug>/.cache/<analyzer>.json`. The next `audit run` reuses the cache (logged as `↻ <analyzer> (cached …)`) so you only re-pay for analyzers you actually change. Failed analyzers don't cache, so they retry automatically. Use `--rerun <name>` to force a fresh run for one, or `clean` to wipe everything and start over.
+
+### Report visuals
+
+The HTML report includes two inline-SVG charts above the findings table when the data is available:
+
+- **Core Web Vitals chart** — horizontal bars for LCP, CLS, INP (or TBT fallback), FCP, TTFB, colored against Google's good / needs-improvement / poor thresholds. CrUX field data is preferred when available; falls back to Lighthouse lab values. The Lighthouse **performance score (0–100)** renders as a separate row with a continuous red→yellow→green gradient track, a marker at the score's position, and dashed reference ticks at the web median (≈35) and EDS target (95). When PSI returns no overall performance score, the row is omitted and a `cwv-perf-score-unavailable` info finding is emitted explaining the gap.
+- **Analyzer × severity heatmap** — at-a-glance grid showing where findings are concentrated across analyzers and severities.
+
+Both charts are self-contained SVG (no external deps) and print-friendly in the PDF renderer.
 
 ### Online delivery
 
@@ -107,8 +117,9 @@ If only one project exists, `--project` / `--all` is optional. With multiple pro
 |---|---|
 | `customer` | Customer / project name (shown in the report header). |
 | `site` | Production site URL (used by `seo`, `security`, `accessibility`, `cwv`). |
-| `source.code.repo` | Git URL of the customer's EDS code repo. |
+| `source.code.repo` | Git URL of the customer's EDS code repo. Mutually exclusive with `source.code.path`. |
 | `source.code.ref` | Branch / tag / SHA to clone (default `main`). Cloned with `--depth=1`. |
+| `source.code.path` | Absolute or `~`-relative path to a local code snapshot. When set, the code is rsynced (with `--delete`) into `projects/<slug>/code/` instead of being cloned from GitHub. `repo` / `ref` are ignored. `node_modules`, `.cache`, `.DS_Store` are excluded. |
 | `content.source` | `da` (default) / `rclone` / `local` / `manual` / `none`. See examples below. |
 | `analyzers` | Array of analyzer names. Order is irrelevant — analyzers fan out in parallel. |
 | `output` | Array of renderer names: `json`, `html`, `md`, `pdf`. |
