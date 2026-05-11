@@ -125,9 +125,9 @@ export async function run({ config, projectDir }) {
   const summaryMatch = md.match(/###\s*\*\*Executive Summary\*\*([\s\S]*?)(?=\n###\s*\*\*|\Z)/i);
   const summaryText = summaryMatch ? summaryMatch[1].trim() : md.slice(0, 1500);
 
-  const metrics = await readCwvMetrics({ cacheDir, slug, device });
+  const { metrics, perfUnavailable } = await readCwvMetrics({ cacheDir, slug, device });
 
-  return [f({
+  const findings = [f({
     id: 'cwv-report',
     severity: 'info',
     category: 'performance',
@@ -137,11 +137,27 @@ export async function run({ config, projectDir }) {
     evidence: [{ file: `cwv/${latest}`, url: config.site }],
     ...(metrics.length ? { metrics } : {}),
   })];
+
+  if (perfUnavailable) {
+    findings.push(f({
+      id: 'cwv-perf-score-unavailable',
+      severity: 'info',
+      category: 'performance',
+      title: `Lighthouse performance score unavailable (${device})`,
+      description: `PageSpeed Insights returned no overall performance score for ${config.site} on ${device}. The lab run couldn't complete enough audits (LCP, TBT, Interactive all came back empty). Common causes: page is too heavy for Lighthouse's mobile-throttled time budget, the LCP element never fires in a headless lab environment, or bot mitigation serves a degraded page to PSI's Chromium. Real-user (CrUX) data is still shown in the chart.`,
+      recommendation: device === 'mobile' ? `Try \`"cwv": { "device": "desktop" }\` in audit.config.json — desktop Lighthouse often completes when mobile times out. Re-run with \`--fresh cwv\` to bust the PSI cache.` : 'Inspect PSI for this URL in a browser; if it also fails there, the issue is on the site side.',
+      evidence: [{ url: config.site }],
+    }));
+  }
+
+  return findings;
 }
 
 async function readCwvMetrics({ cacheDir, slug, device }) {
   try {
     const psi = JSON.parse(await readFile(path.join(cacheDir, `${slug}.${device}.psi.json`), 'utf8'));
+    const perfScoreRaw = psi?.data?.lighthouseResult?.categories?.performance?.score;
+    const perfUnavailable = perfScoreRaw == null;
     const audits = psi?.data?.lighthouseResult?.audits || {};
     const fieldMetrics = psi?.data?.loadingExperience?.metrics || {};
     const num = (k) => audits?.[k]?.numericValue;
@@ -156,7 +172,7 @@ async function readCwvMetrics({ cacheDir, slug, device }) {
       if (value == null || Number.isNaN(value)) return;
       out.push({ key, label, value, unit, thresholds, direction });
     };
-    const perfScore = psi?.data?.lighthouseResult?.categories?.performance?.score;
+    const perfScore = perfScoreRaw;
     if (perfScore != null) {
       out.push({
         key: 'lhs-perf',
@@ -177,8 +193,8 @@ async function readCwvMetrics({ cacheDir, slug, device }) {
     else push('tbt', 'TBT', num('total-blocking-time'), 'ms', { good: 200, poor: 600 });
     push('fcp', 'FCP', num('first-contentful-paint'), 'ms', { good: 1800, poor: 3000 });
     push('ttfb', 'TTFB', ttfbField ?? num('server-response-time'), 'ms', { good: 800, poor: 1800 });
-    return out;
+    return { metrics: out, perfUnavailable };
   } catch {
-    return [];
+    return { metrics: [], perfUnavailable: false };
   }
 }
