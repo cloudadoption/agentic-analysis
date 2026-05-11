@@ -21,6 +21,7 @@ export const Metric = z.object({
   unit: z.enum(['ms', 's', 'score', 'count', 'percent']).default('ms'),
   thresholds: z.object({ good: z.number(), poor: z.number() }),
   direction: z.enum(['lower-is-better', 'higher-is-better']).default('lower-is-better'),
+  benchmarks: z.array(z.object({ value: z.number(), label: z.string() })).optional(),
 });
 
 export const FindingSchema = z.object({

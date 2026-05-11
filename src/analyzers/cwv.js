@@ -140,7 +140,20 @@ async function readCwvMetrics({ cacheDir, slug, device }) {
       out.push({ key, label, value, unit, thresholds, direction });
     };
     const perfScore = psi?.data?.lighthouseResult?.categories?.performance?.score;
-    if (perfScore != null) push('lhs-perf', 'Perf', perfScore * 100, 'score', { good: 90, poor: 50 }, 'higher-is-better');
+    if (perfScore != null) {
+      out.push({
+        key: 'lhs-perf',
+        label: 'Perf',
+        value: perfScore * 100,
+        unit: 'score',
+        thresholds: { good: 90, poor: 50 },
+        direction: 'higher-is-better',
+        benchmarks: [
+          { value: 35, label: 'web median' },
+          { value: 95, label: 'EDS target' },
+        ],
+      });
+    }
     push('lcp', 'LCP', lcpField ?? num('largest-contentful-paint'), 'ms', { good: 2500, poor: 4000 });
     push('cls', 'CLS', (clsField != null ? clsField / 100 : num('cumulative-layout-shift')), 'score', { good: 0.1, poor: 0.25 });
     if (inpField != null) push('inp', 'INP', inpField, 'ms', { good: 200, poor: 500 });

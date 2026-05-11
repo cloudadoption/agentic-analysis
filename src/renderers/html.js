@@ -75,19 +75,30 @@ function renderCwvChart(metrics) {
   const barX = labelW;
   const barW = 360;
   const totalW = labelW + barW + valueW;
-  const totalH = metrics.length * rowH + 16;
+  const benchExtra = 14; // extra px for any row that has benchmark labels below the bar
+  const rowHeights = metrics.map((m) => rowH + (m.benchmarks?.length ? benchExtra : 0));
+  const rowYs = rowHeights.reduce((acc, h) => { acc.push((acc[acc.length - 1] ?? 0) + h); return acc; }, [0]);
+  const totalH = rowYs[rowYs.length - 1] + 4;
 
   const gradientId = 'perfGradient';
   const rows = metrics.map((m, i) => {
-    const y = i * rowH + 14;
+    const y = rowYs[i] + 6;
     if (m.direction === 'higher-is-better') {
       const scaleMax = Math.max(m.thresholds.good * 1.05, m.value * 1.05, 100);
       const x = (v) => barX + Math.min(barW, (v / scaleMax) * barW);
       const valX = x(m.value);
+      const benchmarks = (m.benchmarks || []).map((b) => {
+        const bx = x(b.value);
+        return `
+          <line x1="${bx}" y1="${y + 2}" x2="${bx}" y2="${y + 20}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="2,2"/>
+          <text x="${bx}" y="${y + 32}" text-anchor="middle" class="muted" style="font-size:9px">${escape(b.label)} ${escape(formatMetric(b.value, m.unit))}</text>
+        `;
+      }).join('');
       return `
         <text x="0" y="${y + 12}" class="muted">${escape(m.label)}</text>
         <rect x="${barX}" y="${y + 4}" width="${barW}" height="14" rx="2" fill="url(#${gradientId})" opacity="0.45"/>
         <rect x="${barX}" y="${y + 4}" width="${barW}" height="14" rx="2" fill="none" stroke="var(--border)"/>
+        ${benchmarks}
         <line x1="${valX}" y1="${y + 1}" x2="${valX}" y2="${y + 21}" stroke="var(--text)" stroke-width="2"/>
         <circle cx="${valX}" cy="${y + 11}" r="3.5" fill="var(--text)"/>
         <text x="${barX + barW + 8}" y="${y + 14}">${escape(formatMetric(m.value, m.unit))}</text>
