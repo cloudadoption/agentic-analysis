@@ -4,11 +4,12 @@
   "source": {
     "code": {
       "repo": "https://github.com/customer/eds-site.git",
-      "ref": "main"
+      "ref": "main",
+      "_comment": "Alternative: { \"path\": \"/abs/or/~/path/to/snapshot\" } to rsync from a local code snapshot instead of cloning from GitHub."
     }
   },
   "content": { "source": "da" },
-  "analyzers": ["codeQuality", "contentModel", "seo", "security", "accessibility", "publishStatus"],
+  "analyzers": ["codeQuality", "contentModel", "seo", "security", "accessibility", "cwv", "publishStatus"],
   "output": ["json", "html", "md", "pdf"],
   "cwv": { "device": "mobile" },
   "eds": {
