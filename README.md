@@ -234,6 +234,25 @@ Authorization: Bearer <BEDROCK_API_KEY>
 
 Tool schemas come from each tool module's `spec`. Tool results are appended to the message history; if the conversation grows past ~250 KB of characters, the loop prunes prior tool results to placeholders and forces a final JSON-only reply, so a chatty model can't blow the 1M-token context.
 
+## Testing
+
+```bash
+npm test
+```
+
+Uses [Vitest](https://vitest.dev/). The suite includes:
+
+| Test file | Coverage |
+|---|---|
+| `src/bedrock/client.test.js` | Endpoint URL builder, missing-key error, live Bedrock connectivity |
+
+The live connectivity test (`connects to Bedrock and gets a valid response`) sends a minimal one-token prompt and asserts a valid response. It skips automatically when `BEDROCK_API_KEY` is not in the environment, so it is safe to run in CI without credentials; the unit tests still pass.
+
+To run the live test locally:
+```bash
+node --env-file=.env node_modules/.bin/vitest run src/bedrock/client.test.js
+```
+
 ## Troubleshooting
 
 - **`BEDROCK_API_KEY is not set`** — `cp .env.example .env`, set the key.
