@@ -8,7 +8,7 @@ describe('bedrock client', () => {
   });
 
   it('throws when BEDROCK_API_KEY is missing', async () => {
-    await expect(converse({ messages: [], apiKey: undefined }))
+    await expect(converse({ messages: [], apiKey: '' }))
       .rejects.toThrow('BEDROCK_API_KEY is not set');
   });
 
