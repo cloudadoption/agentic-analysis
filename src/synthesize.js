@@ -52,7 +52,7 @@ export async function synthesize({ findings }) {
   return SynthesisSchema.parse(json);
 }
 
-function extractJson(text) {
+export function extractJson(text) {
   const t = text.trim();
   const start = t.indexOf('{');
   const end = t.lastIndexOf('}');
@@ -60,9 +60,9 @@ function extractJson(text) {
   return JSON.parse(t.slice(start, end + 1));
 }
 
-function countBy(arr, fn) {
+export function countBy(arr, fn) {
   return arr.reduce((acc, x) => { const k = fn(x); acc[k] = (acc[k] || 0) + 1; return acc; }, {});
 }
-function groupBy(arr, fn) {
+export function groupBy(arr, fn) {
   return arr.reduce((acc, x) => { const k = fn(x); (acc[k] ||= []).push(x); return acc; }, {});
 }

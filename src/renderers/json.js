@@ -17,7 +17,7 @@ export async function render({ findings, synthesis, config, projectDir, slug }) 
   return target;
 }
 
-function countsBySeverity(findings) {
+export function countsBySeverity(findings) {
   return findings.reduce((acc, f) => {
     acc[f.severity] = (acc[f.severity] || 0) + 1;
     return acc;

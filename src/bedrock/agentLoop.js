@@ -4,7 +4,7 @@ import { getToolConfig, dispatch } from '../tools/index.js';
 const MAX_TURNS = 12;
 const MAX_HISTORY_CHARS = 250_000;
 
-function historyChars(messages) {
+export function historyChars(messages) {
   let n = 0;
   for (const m of messages) {
     for (const b of m.content || []) {
@@ -16,7 +16,7 @@ function historyChars(messages) {
   return n;
 }
 
-function pruneToolResults(messages, keepLast = 1) {
+export function pruneToolResults(messages, keepLast = 1) {
   const toolResultIdxs = [];
   messages.forEach((m, mi) => {
     (m.content || []).forEach((b, bi) => {

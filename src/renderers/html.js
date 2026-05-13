@@ -10,7 +10,7 @@ export async function render({ findings, synthesis, config, projectDir, slug }) 
   return target;
 }
 
-function escape(s = '') {
+export function escape(s = '') {
   return String(s)
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
@@ -50,7 +50,7 @@ function categoryWeight(findings) {
   return findings.reduce((acc, f) => acc + (f.severity === 'critical' ? 100 : f.severity === 'warning' ? 10 : f.severity === 'info' ? 1 : 0), 0);
 }
 
-function zoneColor(value, { good, poor }, direction = 'lower-is-better') {
+export function zoneColor(value, { good, poor }, direction = 'lower-is-better') {
   if (direction === 'higher-is-better') {
     if (value >= good) return 'var(--success)';
     if (value > poor) return 'var(--warning)';
@@ -61,7 +61,7 @@ function zoneColor(value, { good, poor }, direction = 'lower-is-better') {
   return 'var(--critical)';
 }
 
-function formatMetric(value, unit) {
+export function formatMetric(value, unit) {
   if (unit === 'score') return value >= 1 ? Math.round(value).toString() : (value.toFixed(3).replace(/\.?0+$/, '') || '0');
   if (unit === 'ms') return value >= 1000 ? `${(value / 1000).toFixed(2)}s` : `${Math.round(value)}ms`;
   if (unit === 'percent') return `${Math.round(value)}%`;
@@ -177,7 +177,7 @@ function renderHeatmap(findings) {
   </div>`;
 }
 
-function buildHtml({ findings, synthesis, config, slug }) {
+export function buildHtml({ findings, synthesis, config, slug }) {
   const c = counts(findings);
   const generatedAt = new Date().toISOString();
   const byCategory = groupBy(findings, (f) => f.category);
