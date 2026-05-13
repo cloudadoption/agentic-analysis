@@ -240,18 +240,16 @@ Tool schemas come from each tool module's `spec`. Tool results are appended to t
 npm test
 ```
 
-Uses [Vitest](https://vitest.dev/). The suite includes:
+Uses [Vitest](https://vitest.dev/). `vitest.config.js` loads `.env` automatically via `dotenv`, so the live Bedrock connectivity test runs with no extra flags when the file is present. In CI (no `.env`), that test skips gracefully and the rest of the suite still passes.
 
 | Test file | Coverage |
 |---|---|
-| `src/bedrock/client.test.js` | Endpoint URL builder, missing-key error, live Bedrock connectivity |
-
-The live connectivity test (`connects to Bedrock and gets a valid response`) sends a minimal one-token prompt and asserts a valid response. It skips automatically when `BEDROCK_API_KEY` is not in the environment, so it is safe to run in CI without credentials; the unit tests still pass.
-
-To run the live test locally:
-```bash
-node --env-file=.env node_modules/.bin/vitest run src/bedrock/client.test.js
-```
+| `src/bedrock/client.test.js` | Endpoint URL builder, missing-key error, live Bedrock connectivity (sends a real prompt, asserts "pong" response) |
+| `src/bedrock/agentLoop.test.js` | `historyChars` across all block types; `pruneToolResults` boundary cases (keep 0 / keep last N / keep all) |
+| `src/schema/finding.test.js` | `FindingSchema` and `FindingsArraySchema` — valid findings, all optional fields, bad severity/category/URL/line rejection |
+| `src/synthesize.test.js` | `extractJson` (bare JSON, embedded in prose, malformed); `countBy` and `groupBy` |
+| `src/renderers/json.test.js` | `countsBySeverity` counts and edge cases |
+| `src/renderers/html.test.js` | `escape` XSS chars; `zoneColor` thresholds (lower- and higher-is-better); `formatMetric` unit formatting; `buildHtml` structure, XSS guards on customer name and inlined JSON |
 
 ## Troubleshooting
 
